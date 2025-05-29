@@ -5,10 +5,10 @@ import (
     "fmt"
     "log"
 
-    "github.com/youruser/ai-newsbot/internal/bot"
-    "github.com/youruser/ai-newsbot/internal/scraper"
-    "github.com/youruser/ai-newsbot/internal/storage"
-    "github.com/youruser/ai-newsbot/internal/translation"
+    "github.com/w1zzzle/ai-newsbot/internal/bot"
+    "github.com/w1zzzle/ai-newsbot/internal/scraper"
+    "github.com/w1zzzle/ai-newsbot/internal/storage"
+    "github.com/w1zzzle/ai-newsbot/internal/translation"
 )
 
 type App struct {

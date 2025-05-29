@@ -40,7 +40,12 @@ func main() {
     // Initialize components
     scraperSvc := scraper.New(cfg.RedditURLs, cfg.UpvoteThreshold)
     translatorSvc := translation.New(cfg.OpenRouterAPIKey)
-    botSvc := bot.New(cfg.TelegramBotToken, cfg.TelegramChatID)
+    
+    // Fix: bot.New now returns (*TelegramBot, error)
+    botSvc, err := bot.New(cfg.TelegramBotToken, cfg.TelegramChatID)
+    if err != nil {
+        log.Fatalf("Failed to initialize bot: %v", err)
+    }
 
     // Initialize application
     application := app.New(store, scraperSvc, translatorSvc, botSvc)

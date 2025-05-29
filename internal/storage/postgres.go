@@ -2,12 +2,9 @@ package storage
 
 import (
     "context"
-    "database/sql"
     "time"
 
-    "github.com/jackc/pgx/v5"
     "github.com/jackc/pgx/v5/pgxpool"
-    "github.com/lib/pq"
 )
 
 type Post struct {
@@ -58,7 +55,7 @@ func (s *PostgresStore) SavePost(ctx context.Context, p Post) error {
             translated_body = EXCLUDED.translated_body
     `
     
-    _, err := s.pool.Exec(ctx, query, p.RedditID, p.Title, p.Body, pq.Array(p.MediaURLs), p.TranslatedBody)
+    _, err := s.pool.Exec(ctx, query, p.RedditID, p.Title, p.Body, p.MediaURLs, p.TranslatedBody)
     return err
 }
 
@@ -87,14 +84,12 @@ func (s *PostgresStore) ListUnpublishedPosts(ctx context.Context) ([]Post, error
     var posts []Post
     for rows.Next() {
         var p Post
-        var mediaURLs pq.StringArray
         
-        err := rows.Scan(&p.ID, &p.RedditID, &p.Title, &p.Body, &mediaURLs, &p.TranslatedBody, &p.PublishedAt, &p.CreatedAt)
+        err := rows.Scan(&p.ID, &p.RedditID, &p.Title, &p.Body, &p.MediaURLs, &p.TranslatedBody, &p.PublishedAt, &p.CreatedAt)
         if err != nil {
             return nil, err
         }
         
-        p.MediaURLs = []string(mediaURLs)
         posts = append(posts, p)
     }
 
