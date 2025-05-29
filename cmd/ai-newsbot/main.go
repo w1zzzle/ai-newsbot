@@ -1,79 +1,120 @@
 package main
 
 import (
-    "context"
-    "log"
-    "os"
-    "os/signal"
-    "syscall"
-    "time"
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
 
-    "github.com/joho/godotenv"
-    "github.com/robfig/cron/v3"
-    "github.com/w1zzzle/ai-newsbot/internal/app"
-    "github.com/w1zzzle/ai-newsbot/internal/bot"
-    "github.com/w1zzzle/ai-newsbot/internal/config"
-    "github.com/w1zzzle/ai-newsbot/internal/scraper"
-    "github.com/w1zzzle/ai-newsbot/internal/storage"
-    "github.com/w1zzzle/ai-newsbot/internal/translation"
+	"github.com/w1zzzle/ai-newsbot/internal/translation"
 )
 
 func main() {
-    // Load environment variables
-    if err := godotenv.Load(); err != nil {
-        log.Println("No .env file found, using system environment variables")
-    }
+	// Get API key from environment
+	apiKey := os.Getenv("OPENROUTER_API_KEY")
+	if apiKey == "" {
+		log.Fatal("OPENROUTER_API_KEY environment variable is required")
+	}
 
-    // Load configuration
-    cfg, err := config.Load()
-    if err != nil {
-        log.Fatalf("Failed to load config: %v", err)
-    }
+	// Create translator
+	translator := translation.New(apiKey)
 
-    // Initialize storage
-    store, err := storage.NewPostgresStore(cfg.PostgresDSN)
-    if err != nil {
-        log.Fatalf("Failed to initialize storage: %v", err)
-    }
-    defer store.Close()
+	// Test translation service health
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-    // Initialize components
-    scraperSvc := scraper.New(cfg.RedditURLs, cfg.UpvoteThreshold)
-    translatorSvc := translation.New(cfg.OpenRouterAPIKey)
-    
-    // Fix: bot.New now returns (*TelegramBot, error)
-    botSvc, err := bot.New(cfg.TelegramBotToken, cfg.TelegramChatID)
-    if err != nil {
-        log.Fatalf("Failed to initialize bot: %v", err)
-    }
+	if err := translator.IsHealthy(ctx); err != nil {
+		log.Printf("Translation service health check failed: %v", err)
+	} else {
+		log.Println("Translation service is healthy")
+	}
 
-    // Initialize application
-    application := app.New(store, scraperSvc, translatorSvc, botSvc)
+	// Example usage in your scraping workflow
+	redditPost := `
+Title: New AI Model Breaks Performance Records
 
-    // Setup cron scheduler
-    c := cron.New()
-    _, err = c.AddFunc("@hourly", func() {
-        ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-        defer cancel()
-        
-        if err := application.RunPipeline(ctx); err != nil {
-            log.Printf("Pipeline execution failed: %v", err)
-        }
-    })
-    if err != nil {
-        log.Fatalf("Failed to setup cron job: %v", err)
-    }
+Content: Researchers at OpenAI have announced a breakthrough in large language model performance. The new model, called GPT-5, shows significant improvements in reasoning, coding, and multilingual capabilities.
 
-    c.Start()
-    log.Println("AI NewsBot started successfully. Running hourly...")
+Key features:
+- 50% better performance on coding benchmarks
+- Improved reasoning abilities
+- Better multilingual support
+- More efficient training process
 
-    // Graceful shutdown
-    quit := make(chan os.Signal, 1)
-    signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-    <-quit
+The model is expected to be released later this year after safety testing.
+	`
 
-    log.Println("Shutting down AI NewsBot...")
-    ctx := c.Stop()
-    <-ctx.Done()
-    log.Println("AI NewsBot stopped")
+	// Translate the post
+	translatedPost, err := translator.TranslateToRussian(ctx, redditPost)
+	if err != nil {
+		log.Fatalf("Translation failed: %v", err)
+	}
+
+	fmt.Println("Original post:")
+	fmt.Println(redditPost)
+	fmt.Println("\nTranslated post:")
+	fmt.Println(translatedPost)
+
+	// Example batch translation
+	posts := []string{
+		"Breaking: New programming language announced",
+		"Tech stocks surge after AI breakthrough",
+		"Open source project gains massive community support",
+	}
+
+	translatedPosts, err := translator.TranslateBatch(ctx, posts)
+	if err != nil {
+		log.Fatalf("Batch translation failed: %v", err)
+	}
+
+	fmt.Println("\nBatch translation results:")
+	for i, original := range posts {
+		fmt.Printf("Original: %s\n", original)
+		fmt.Printf("Russian: %s\n\n", translatedPosts[i])
+	}
+}
+
+// Example integration with your scraping workflow
+func processRedditPost(translator translation.Service, post RedditPost) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Combine title and content for translation
+	fullText := fmt.Sprintf("Заголовок: %s\n\nСодержание: %s", post.Title, post.Content)
+
+	// Translate to Russian
+	translatedText, err := translator.TranslateToRussian(ctx, fullText)
+	if err != nil {
+		return fmt.Errorf("failed to translate post: %w", err)
+	}
+
+	// Parse translated text back to title and content if needed
+	// This is a simple example - you might want more sophisticated parsing
+	post.TranslatedTitle = extractTitleFromTranslation(translatedText)
+	post.TranslatedContent = extractContentFromTranslation(translatedText)
+
+	return nil
+}
+
+// Mock structures for example
+type RedditPost struct {
+	Title             string
+	Content           string
+	URL               string
+	Upvotes          int
+	TranslatedTitle   string
+	TranslatedContent string
+}
+
+func extractTitleFromTranslation(translatedText string) string {
+	// Implementation would parse "Заголовок: ..." from translated text
+	// This is a placeholder
+	return "Translated Title"
+}
+
+func extractContentFromTranslation(translatedText string) string {
+	// Implementation would parse "Содержание: ..." from translated text
+	// This is a placeholder
+	return "Translated Content"
 }

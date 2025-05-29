@@ -6,7 +6,7 @@ import (
     "time"
 
     "github.com/stretchr/testify/assert"
-    "github.com/youruser/ai-newsbot/internal/storage"
+    "github.com/w1zzzle/ai-newsbot/internal/storage"
 )
 
 func TestTelegramBot_FormatMessage(t *testing.T) {

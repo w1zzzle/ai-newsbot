@@ -10,7 +10,7 @@ import (
     "time"
 
     "github.com/PuerkitoBio/goquery"
-    "github.com/youruser/ai-newsbot/internal/storage"
+    "github.com/w1zzzle/ai-newsbot/internal/storage"
 )
 
 type Scraper interface {
