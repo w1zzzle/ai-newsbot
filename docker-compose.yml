@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ai_newsbot
+      POSTGRES_USER: ai_newsbot
+      POSTGRES_PASSWORD: your_password_here
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_newsbot -d ai_newsbot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-newsbot:
+    build: .
+    environment:
+      - POSTGRES_DSN=postgres://ai_newsbot:your_password_here@postgres:5432/ai_newsbot?sslmode=disable
+      - REDDIT_URLS=https://www.reddit.com/r/ArtificialIntelligence/top/,https://www.reddit.com/r/MachineLearning/top/
+      - UPVOTE_THRESHOLD=100
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+
+volumes:
+  postgres_data:
